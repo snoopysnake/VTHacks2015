@@ -1,0 +1,177 @@
+﻿<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	
+	<title>PDF417 En/Decryption</title>
+	       
+	<script src="bcmath-min.js" type="text/javascript"></script>
+    <script src="pdf417.js" type="text/javascript"></script>	
+    <script src="jscii.js" type="text/javascript"></script>
+    <script src="aes.js" type="text/javascript"></script>    
+
+    <script type ="text/javascript">
+        
+        function generateT() {
+            if (document.getElementById('barcode').hasChildNodes()) {
+                document.getElementById('barcode').removeChild(document.getElementById('barcode').firstChild);
+            }
+            /* compact IDs (900, 902, 924 */
+            //vadr mode = parseInt(document.getElementById("drop_menu").value);
+
+            var code = document.getElementById('text_box').value;
+            var password = document.getElementById('pass').value;
+            if (password != "") {
+                code = CryptoJS.AES.encrypt(code, password);
+            }
+            /* compacting code */
+            //var compact = PDF417.getCompaction(mode, code, false);
+            //var i = 0;
+            //while (i < compact.length) {
+            //    compact[i] = String.fromCharCode(parseInt(compact[i]));
+            //    i++;
+            //}
+            //PDF417.init(compact.join(''));
+
+            PDF417.init(code);
+
+            var barcode = PDF417.getBarcodeArray();
+
+            var bw = 5;
+            var bh = 3;
+
+            var canvas = document.createElement('canvas');
+            canvas.width = bw * barcode['num_cols'];
+            canvas.height = bh * barcode['num_rows'];
+            document.getElementById('barcode').appendChild(canvas);
+
+            var ctx = canvas.getContext('2d');
+
+            // print barcode elements
+            var y = 0;
+            // for each row
+            for (var r = 0; r < barcode['num_rows']; ++r) {
+                var x = 0;
+                // for each column
+                for (var c = 0; c < barcode['num_cols']; ++c) {
+                    if (barcode['bcode'][r][c] == 1) {
+                        ctx.fillRect(x, y, bw, bh);
+                    }
+                    x += bw;
+                }
+                y += bh;
+            }
+            document.getElementById('print_msg').innerHTML = "Your encoded 2D barcode is:";
+        }
+
+        function generateD() {
+            if (document.getElementById('barcode').hasChildNodes()) {
+                document.getElementById('barcode').removeChild(document.getElementById('barcode').firstChild);
+            }
+            var code = document.getElementById('text_box_2').value;
+            var password = document.getElementById('pass').value;
+            if (password != "") {
+                var dec = CryptoJS.AES.decrypt(code, password);
+            }
+            document.getElementById('print_msg').innerHTML = "Your decrypted message is:";
+            var message = dec.toString(CryptoJS.enc.Utf8);
+            document.getElementById('barcode').innerHTML = message;
+        }
+
+        function upload() {
+
+            var fileInput = document.getElementById('fileInput');
+            var fileDisplayArea = document.getElementById('fileDisplayArea');
+
+
+            fileInput.addEventListener('change', function (e) {
+                var file = fileInput.files[0];
+                var imageType = /image.*/;
+
+                if (file.type.match(imageType)) {
+                    var reader = new FileReader();
+
+                    reader.onload = function (e) {
+                        fileDisplayArea.innerHTML = "";
+
+                        //var img = new Image();
+                        var image = document.createElement('img');
+                        image.src = reader.result;
+                        
+                        image.height = 150;
+
+                        fileDisplayArea.appendChild(image);
+
+                        var imgJscii = new Jscii({
+                            width: 35,
+                            color: false,
+                            el: image,
+                            fn: function (str) {
+                                document.getElementById('ascii-container-image').innerHTML = str;
+                            }
+                        });
+                    }
+
+                    reader.readAsDataURL(file);
+                } else {
+                    fileDisplayArea.innerHTML = "File not supported!"
+                }
+            });
+
+        }
+
+        function generateI() {
+            var imagecrypt = document.getElementById('ascii-container-image').innerHTML;
+            imagecrypt = imagecrypt.replace(/&nbsp;/g, " ");
+            document.getElementById('text_box').value = imagecrypt;
+            generateT();
+        }
+    </script>
+
+</head>
+<body style="text-align:center; background-color:#e8bbbb">
+<div>
+    <h1>
+        <a>PDF417 </a>
+        <a style="color: red" id="encrypt" onclick="ayy()">ENCRYPT</a>
+        <a>/</a>
+        <a style="color:green" id="decrypt">DECRYPT</a>
+        <a>/</a>
+        <a style="color:blue" id="image">IMAGE</a>
+    </h1>
+</div>
+<div>
+    <a style="display:inline-block">Encryption Key/Password</a>
+    <a style="display:inline-block; color:red">(not recommended for images)</a>
+    <div>
+        <input type="text" id="pass" size="100"value="UMD"/>
+    </div>
+</div>
+<h2>
+    <a style="color:red">INPUT </a>
+    <a style="color:green">TEXT:</a>
+</h2>
+<div style="text-align:center">
+    <textarea id="text_box" cols="50" rows="25" style="letter-spacing:3px;">[Enter data to encrypt]</textarea>
+    <textarea id="text_box_2" cols="50" rows="25" style="letter-spacing:3px;">[Enter data to decrypt]</textarea>
+</div>
+<div>
+    <button type="submit" onclick="generateT();">Encrypt Text!</button>
+    <button type="submit" onclick="generateD();">Decrypt Text!</button>
+</div>
+<div>
+        <h2 style="color:blue">INPUT IMAGE:</h2>
+</div>
+    <input type="file" id="fileInput" onclick="upload();" style="text-align:right"/>
+<div class="container">
+        <div id="fileDisplayArea" style="padding: 20px; display: inline-block"></div>
+	    <pre id="ascii-container-image" style="color:midnightblue; font-size: 5px; padding: 5px 5px; letter-spacing:3px; display: inline-block "></pre>
+</div>
+<button type="submit" onclick="generateI();">Encrypt Image!</button>
+<p id="print_msg"></p>
+<div id='barcode' style="font-size:30px"></div>
+
+</body>
+
+</html>
